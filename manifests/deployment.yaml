@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: reactapp-container
-       image: project2.azurecr.io/reactapp:$(Build.BuildId)
+        image: project2.azurecr.io/reactapp:15
   # This will be overridden by pipeline
         ports:
         - containerPort: 80
