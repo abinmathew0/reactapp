@@ -23,7 +23,7 @@ spec:
               service:
                 name: {{ include "react-app-chart.fullname" $ }}
                 port:
-                  number: {{ $root.Values.service.port }}
+                  number: {{ $.Values.service.port }}
           {{- end }}
     {{- end }}
   {{- if .Values.ingress.tls }}
