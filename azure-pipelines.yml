@@ -1,0 +1,91 @@
+# azure-pipelines.yml
+trigger:
+- main
+
+resources:
+- repo: self
+
+variables:
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: '26356803-ca7e-4667-9d33-49129a610108'
+  imageRepository: 'my-react-app'
+  containerRegistry: 'myreactappacr.azurecr.io'
+  dockerfilePath: '**/Dockerfile'
+  tag: '$(Build.BuildId)'
+  imagePullSecret: 'myreactappacr-auth'
+  
+  # Agent VM image name
+  vmImageName: Default
+
+  # Kubernetes
+  azureSubscription: 'myconn'
+  kubernetesServiceConnection: 'my-react-app-aks-default'
+  resourceGroup: 'YourResourceGroup'
+  clusterName: 'my-react-app-aks'
+  namespace: 'default'
+  helmReleaseName: 'my-react-app'
+
+stages:
+- stage: Build
+  displayName: Build and push image
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      name: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Build and push image to ACR
+      inputs:
+        command: buildAndPush
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(tag)
+          latest
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Helm Chart'
+      inputs:
+        targetPath: '$(Build.SourcesDirectory)/react-app-chart'
+        artifact: 'helm-chart'
+        publishLocation: 'pipeline'
+
+- stage: Deploy
+  displayName: Deploy to AKS
+  dependsOn: Build
+  jobs:
+  - deployment: Deploy
+    displayName: Deploy
+    pool:
+      name: $(vmImageName)
+    environment: 'aks-dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: KubernetesManifest@0
+            displayName: Create imagePullSecret
+            inputs:
+              action: createSecret
+              secretName: $(imagePullSecret)
+              dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
+              kubernetesServiceConnection: $(kubernetesServiceConnection)
+              namespace: $(namespace)
+
+          # Removed the helm init task as it's not needed in Helm 3
+          # Helm 3 doesn't require Tiller installation
+
+          - task: HelmDeploy@0
+            displayName: Deploy with Helm
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: $(kubernetesServiceConnection)
+              namespace: $(namespace)
+              command: 'upgrade'
+              chartType: 'FilePath'
+              chartPath: '$(Pipeline.Workspace)/helm-chart'
+              releaseName: $(helmReleaseName)
+              arguments: '--install --wait --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
+              valueFile: '$(Pipeline.Workspace)/helm-chart/values.yaml'
