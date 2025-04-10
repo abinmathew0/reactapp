@@ -1,0 +1,38 @@
+# react-app-chart/values.yaml
+replicaCount: 2
+
+image:
+  repository: myreactappacr.azurecr.io/my-react-app
+  pullPolicy: Always
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: my-react-app.contoso.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
