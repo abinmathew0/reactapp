@@ -6,20 +6,29 @@ image:
   pullPolicy: Always
   tag: "latest"
 
+# Add service account configuration to prevent errors
+serviceAccount:
+  create: false  # Set to true if your app needs Kubernetes API access
+  name: ""
+
 service:
-  type: ClusterIP
+  type: ClusterIP  # Consider LoadBalancer for direct external access during development
   port: 80
 
 ingress:
   enabled: true
   annotations:
     kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Add if using cert-manager
   hosts:
-    - host: my-react-app.contoso.com
+    - host: my-react-app.contoso.com  # Change to your real domain
       paths:
         - path: /
           pathType: Prefix
-  tls: []
+  tls: 
+   - hosts:
+       - my-react-app.contoso.com
+     secretName: my-react-app-tls  # Needed for HTTPS
 
 resources:
   limits:
@@ -31,8 +40,26 @@ resources:
 
 autoscaling:
   enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
 
 prometheus:
   enabled: true
   serviceMonitor:
     enabled: true
+
+# Add pod security context (recommended)
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Add security context for containers
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
