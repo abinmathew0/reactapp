@@ -18,7 +18,7 @@ variables:
   clusterName: 'my-react-app-aks'
   namespace: 'default'
   helmReleaseName: 'my-react-app'
-  helmTimeout: '5m'  # Added timeout variable
+  helmTimeout: '10m'  # Added timeout variable
 
 stages:
 - stage: Build
@@ -82,5 +82,5 @@ stages:
               chartType: 'FilePath'
               chartPath: '$(Pipeline.Workspace)/helm-chart'
               releaseName: $(helmReleaseName)
-              arguments: '--install --wait --timeout $(helmTimeout) --atomic --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
+              arguments: '--install --wait --timeout $(helmTimeout) --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
               valueFile: '$(Pipeline.Workspace)/helm-chart/values.yaml'
