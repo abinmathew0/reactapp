@@ -60,7 +60,7 @@ stages:
       runOnce:
         deploy:
           steps:
-          # Updated to KubernetesManifest@1
+          # Updated Kubernetes manifest task with correct parameter
           - task: KubernetesManifest@1
             displayName: Create imagePullSecret
             inputs:
@@ -68,14 +68,15 @@ stages:
               secretType: dockerRegistry
               secretName: $(imagePullSecret)
               dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
+              kubernetesServiceEndpoint: $(kubernetesServiceConnection)  # Changed from kubernetesServiceConnection
               namespace: $(namespace)
 
-          # Updated to HelmDeploy@1 with timeout and retry
+          # Helm deployment task
           - task: HelmDeploy@1
             displayName: Deploy with Helm
             inputs:
               connectionType: 'Kubernetes Service Connection'
-              kubernetesServiceEndpoint: $(kubernetesServiceConnection)
+              kubernetesServiceEndpoint: $(kubernetesServiceConnection)  # Consistent parameter name
               namespace: $(namespace)
               command: 'upgrade'
               chartType: 'FilePath'
