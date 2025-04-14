@@ -100,21 +100,21 @@ stages:
             displayName: 'Log Helm chart files'
 
           # Helm deployment
-          - task: HelmDeploy@1
-            displayName: Deploy with Helm
-            inputs:
-              connectionType: 'Kubernetes Service Connection'
-              kubernetesServiceEndpoint: $(kubernetesServiceConnection)
-              namespace: $(namespace)
-              command: 'upgrade'
-              chartType: 'FilePath'
-              chartPath: '$(Pipeline.Workspace)/helm-chart'
-              releaseName: $(helmReleaseName)
-              arguments: '--install --timeout $(helmTimeout) --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
-              valueFile: '$(Pipeline.Workspace)/helm-chart/values.yaml'
+          # - task: HelmDeploy@1
+          #   displayName: Deploy with Helm
+          #   inputs:
+          #     connectionType: 'Kubernetes Service Connection'
+          #     kubernetesServiceEndpoint: $(kubernetesServiceConnection)
+          #     namespace: $(namespace)
+          #     command: 'upgrade'
+          #     chartType: 'FilePath'
+          #     chartPath: '$(Pipeline.Workspace)/helm-chart'
+          #     releaseName: $(helmReleaseName)
+          #     arguments: '--install --timeout $(helmTimeout) --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
+          #     valueFile: '$(Pipeline.Workspace)/helm-chart/values.yaml'
 
           # Get release status after deploy
           - script: |
               echo "Getting Helm release status..."
-              helm status $(helmReleaseName) -n $(namespace)
+              # helm status $(helmReleaseName) -n $(namespace)
             displayName: 'Log Helm release status'
