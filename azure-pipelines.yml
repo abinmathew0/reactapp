@@ -82,5 +82,5 @@ stages:
               chartType: 'FilePath'
               chartPath: '$(Pipeline.Workspace)/helm-chart'
               releaseName: $(helmReleaseName)
-              arguments: '--install --wait --timeout $(helmTimeout) --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
+              arguments: '--install --timeout $(helmTimeout) --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
               valueFile: '$(Pipeline.Workspace)/helm-chart/values.yaml'
