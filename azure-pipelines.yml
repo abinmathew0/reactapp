@@ -60,7 +60,27 @@ stages:
       runOnce:
         deploy:
           steps:
-          # Updated Kubernetes manifest task with correct parameter
+          # Display Helm and Kubectl versions
+          - script: |
+              echo "Checking Helm and kubectl versions..."
+              helm version
+              kubectl version --client
+            displayName: 'Log Helm and kubectl versions'
+
+          # Check Kubernetes cluster context and namespaces
+          - script: |
+              echo "Checking current kubectl context and namespaces..."
+              kubectl config get-contexts
+              kubectl get namespaces
+            displayName: 'Verify Kubernetes context and namespaces'
+
+          # Check existing secrets
+          - script: |
+              echo "Checking existing secrets in namespace $(namespace)..."
+              kubectl get secrets -n $(namespace)
+            displayName: 'List Kubernetes secrets in namespace'
+
+          # Create imagePullSecret
           - task: KubernetesManifest@1
             displayName: Create imagePullSecret
             inputs:
@@ -68,15 +88,23 @@ stages:
               secretType: dockerRegistry
               secretName: $(imagePullSecret)
               dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
-              kubernetesServiceEndpoint: $(kubernetesServiceConnection)  # Changed from kubernetesServiceConnection
+              kubernetesServiceEndpoint: $(kubernetesServiceConnection)
               namespace: $(namespace)
 
-          # Helm deployment task
+          # Display Helm chart content
+          - script: |
+              echo "Listing Helm chart directory content..."
+              ls -la $(Pipeline.Workspace)/helm-chart
+              echo "Displaying values.yaml content..."
+              cat $(Pipeline.Workspace)/helm-chart/values.yaml
+            displayName: 'Log Helm chart files'
+
+          # Helm deployment
           - task: HelmDeploy@1
             displayName: Deploy with Helm
             inputs:
               connectionType: 'Kubernetes Service Connection'
-              kubernetesServiceEndpoint: $(kubernetesServiceConnection)  # Consistent parameter name
+              kubernetesServiceEndpoint: $(kubernetesServiceConnection)
               namespace: $(namespace)
               command: 'upgrade'
               chartType: 'FilePath'
@@ -84,3 +112,9 @@ stages:
               releaseName: $(helmReleaseName)
               arguments: '--install --timeout $(helmTimeout) --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
               valueFile: '$(Pipeline.Workspace)/helm-chart/values.yaml'
+
+          # Get release status after deploy
+          - script: |
+              echo "Getting Helm release status..."
+              helm status $(helmReleaseName) -n $(namespace)
+            displayName: 'Log Helm release status'
