@@ -1,4 +1,3 @@
-# azure-pipelines.yml
 trigger:
 - main
 
@@ -6,24 +5,20 @@ resources:
 - repo: self
 
 variables:
-  # Container registry service connection established during pipeline creation
   dockerRegistryServiceConnection: '26356803-ca7e-4667-9d33-49129a610108'
   imageRepository: 'my-react-app'
   containerRegistry: 'myreactappacr.azurecr.io'
   dockerfilePath: '**/Dockerfile'
   tag: '$(Build.BuildId)'
   imagePullSecret: 'myreactappacr-auth'
-  
-  # Agent VM image name
-  vmImageName: Default
-
-  # Kubernetes
+  vmImageName: 'Default'
   azureSubscription: 'myconn'
   kubernetesServiceConnection: 'my-react-app-aks-default'
-  resourceGroup: 'YourResourceGroup'
+  resourceGroup: 'RG1'
   clusterName: 'my-react-app-aks'
   namespace: 'default'
   helmReleaseName: 'my-react-app'
+  helmTimeout: '5m'  # Added timeout variable
 
 stages:
 - stage: Build
@@ -65,27 +60,26 @@ stages:
       runOnce:
         deploy:
           steps:
-          - task: KubernetesManifest@0
+          # Updated to KubernetesManifest@1
+          - task: KubernetesManifest@1
             displayName: Create imagePullSecret
             inputs:
               action: createSecret
+              secretType: dockerRegistry
               secretName: $(imagePullSecret)
               dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
-              kubernetesServiceConnection: $(kubernetesServiceConnection)
               namespace: $(namespace)
 
-          # Removed the helm init task as it's not needed in Helm 3
-          # Helm 3 doesn't require Tiller installation
-
-          - task: HelmDeploy@0
+          # Updated to HelmDeploy@1 with timeout and retry
+          - task: HelmDeploy@1
             displayName: Deploy with Helm
             inputs:
               connectionType: 'Kubernetes Service Connection'
-              kubernetesServiceConnection: $(kubernetesServiceConnection)
+              kubernetesServiceEndpoint: $(kubernetesServiceConnection)
               namespace: $(namespace)
               command: 'upgrade'
               chartType: 'FilePath'
               chartPath: '$(Pipeline.Workspace)/helm-chart'
               releaseName: $(helmReleaseName)
-              arguments: '--install --wait --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
+              arguments: '--install --wait --timeout $(helmTimeout) --atomic --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
               valueFile: '$(Pipeline.Workspace)/helm-chart/values.yaml'
