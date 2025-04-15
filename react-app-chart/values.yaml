@@ -4,24 +4,21 @@ replicaCount: 2
 image:
   repository: myreactappacr.azurecr.io/my-react-app
   pullPolicy: Always
-  tag: "latest"
+  tag: "66"  # Change to your latest pushed tag
 
-# Add service account configuration to prevent errors
 serviceAccount:
-  create: false  # Set to true if your app needs Kubernetes API access
+  create: false
   name: ""
 
 service:
-  type: ClusterIP  # Consider LoadBalancer for direct external access during development
+  type: LoadBalancer  # Changed from ClusterIP to expose externally
   port: 8080
 
 ingress:
-  enabled: true
-  className: "nginx"  # Add this new field
-  annotations: 
-    # Remove the deprecated annotation
-    # kubernetes.io/ingress.class: nginx ← Remove this
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Keep other annotations
+  enabled: false  # Disable for now unless you're setting up ingress controller + DNS
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
   hosts:
     - host: my-react-app.contoso.com
       paths:
@@ -51,17 +48,24 @@ prometheus:
   serviceMonitor:
     enabled: true
 
-# Add pod security context (recommended)
 podSecurityContext:
   fsGroup: 1000
   runAsNonRoot: true
   runAsUser: 1000
 
-# Add security context for containers
 securityContext:
   capabilities:
     drop:
-    - ALL
+      - ALL
   readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsUser: 1000
+
+# 🔧 Add volumeMounts and volumes to support /tmp being writable
+volumeMounts:
+  - name: temp-volume
+    mountPath: /tmp
+
+volumes:
+  - name: temp-volume
+    emptyDir: {}
