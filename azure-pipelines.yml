@@ -18,7 +18,7 @@ variables:
   clusterName: 'my-react-app-aks'
   namespace: 'default'
   helmReleaseName: 'my-react-app'
-  helmTimeout: '10m'  # Added timeout variable
+  helmTimeout: '5m'  # Added timeout variable
 
 stages:
 - stage: Build
