@@ -60,6 +60,18 @@ stages:
       runOnce:
         deploy:
           steps:
+          # Authenticate to AKS and set context
+          - task: AzureCLI@2
+            displayName: 'Set AKS Context'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                echo "Getting AKS credentials..."
+                az aks get-credentials --resource-group $(resourceGroup) --name $(clusterName) --overwrite-existing
+                echo "AKS context set."
+
           # Display Helm and Kubectl versions
           - script: |
               echo "Checking Helm and kubectl versions..."
@@ -81,40 +93,40 @@ stages:
             displayName: 'List Kubernetes secrets in namespace'
 
           # Create imagePullSecret
-          # - task: KubernetesManifest@1
-          #   displayName: Create imagePullSecret
-          #   inputs:
-          #     action: createSecret
-          #     secretType: dockerRegistry
-          #     secretName: $(imagePullSecret)
-          #     dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
-          #     kubernetesServiceEndpoint: $(kubernetesServiceConnection)
-          #     namespace: $(namespace)
+          - task: KubernetesManifest@1
+            displayName: Create imagePullSecret
+            inputs:
+              action: createSecret
+              secretType: dockerRegistry
+              secretName: $(imagePullSecret)
+              dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
+              kubernetesServiceEndpoint: $(kubernetesServiceConnection)
+              namespace: $(namespace)
 
-          # # Display Helm chart content
-          # - script: |
-          #     echo "Listing Helm chart directory content..."
-          #     ls -la $(Pipeline.Workspace)/helm-chart
-          #     echo "Displaying values.yaml content..."
-          #     cat $(Pipeline.Workspace)/helm-chart/values.yaml
-          #   displayName: 'Log Helm chart files'
+          # Display Helm chart content
+          - script: |
+              echo "Listing Helm chart directory content..."
+              ls -la $(Pipeline.Workspace)/helm-chart
+              echo "Displaying values.yaml content..."
+              cat $(Pipeline.Workspace)/helm-chart/values.yaml
+            displayName: 'Log Helm chart files'
 
           # Helm deployment
-          # - task: HelmDeploy@1
-          #   displayName: Deploy with Helm
-          #   inputs:
-          #     connectionType: 'Kubernetes Service Connection'
-          #     kubernetesServiceEndpoint: $(kubernetesServiceConnection)
-          #     namespace: $(namespace)
-          #     command: 'upgrade'
-          #     chartType: 'FilePath'
-          #     chartPath: '$(Pipeline.Workspace)/helm-chart'
-          #     releaseName: $(helmReleaseName)
-          #     arguments: '--install --timeout $(helmTimeout) --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
-          #     valueFile: '$(Pipeline.Workspace)/helm-chart/values.yaml'
+          - task: HelmDeploy@1
+            displayName: Deploy with Helm
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceEndpoint: $(kubernetesServiceConnection)
+              namespace: $(namespace)
+              command: 'upgrade'
+              chartType: 'FilePath'
+              chartPath: '$(Pipeline.Workspace)/helm-chart'
+              releaseName: $(helmReleaseName)
+              arguments: '--install --timeout $(helmTimeout) --set image.repository=$(containerRegistry)/$(imageRepository) --set image.tag=$(tag)'
+              valueFile: '$(Pipeline.Workspace)/helm-chart/values.yaml'
 
           # Get release status after deploy
           - script: |
               echo "Getting Helm release status..."
-              # helm status $(helmReleaseName) -n $(namespace)
+              helm status $(helmReleaseName) -n $(namespace)
             displayName: 'Log Helm release status'
