@@ -1,70 +1,166 @@
-# Getting Started with Create React App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# CI/CD Pipeline for React App using Azure DevOps, Helm, AKS & ACR
 
-## Available Scripts
+## 📌 Overview
 
-In the project directory, you can run:
+This project automates the CI/CD workflow for a React application using:
+- Azure DevOps Pipelines
+- Azure Container Registry (ACR)
+- Azure Kubernetes Service (AKS)
+- Helm charts for deployment
 
-### `npm start`
+## 📁 Project Structure
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```
+.
+├── react-app/                    # React source code
+├── react-app-chart/              # Helm chart for deployment
+│   └── values.yaml               # Custom values for deployment
+├── Dockerfile                    # Multi-stage build for React + NGINX
+└── azure-pipelines.yml           # CI/CD pipeline
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 🚀 Prerequisites
 
-### `npm test`
+Before setting up the pipeline:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. ✅ Azure Container Registry (ACR) is created.
+2. ✅ Azure Kubernetes Service (AKS) cluster is created.
+3. ✅ Kubernetes Service Connection is set up in Azure DevOps.
+4. ✅ ACR Docker registry service connection is added to Azure DevOps.
+5. ✅ Helm chart is properly configured in `react-app-chart`.
 
-### `npm run build`
+## 🔧 Setup Instructions
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 1. 🐳 Dockerfile (at root level)
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```Dockerfile
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+FROM nginx:stable-alpine
+RUN rm /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY --from=build /app/build /usr/share/nginx/html
+EXPOSE 8080
+CMD ["nginx", "-g", "daemon off;"]
+```
 
-### `npm run eject`
+### 2. ⚙️ nginx.conf (root)
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```nginx
+pid /tmp/nginx.pid;
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+worker_processes 1;
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+events {
+    worker_connections 1024;
+}
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    sendfile        on;
+    keepalive_timeout  65;
 
-## Learn More
+    client_body_temp_path /tmp/client_body;
+    proxy_temp_path /tmp/proxy;
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+    server {
+        listen       8080;
+        server_name  localhost;
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+        location / {
+            root   /usr/share/nginx/html;
+            index  index.html index.htm;
+            try_files $uri /index.html;
+        }
 
-### Code Splitting
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   /usr/share/nginx/html;
+        }
+    }
+}
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 3. 🧠 Helm Chart (react-app-chart/values.yaml)
 
-### Analyzing the Bundle Size
+```yaml
+replicaCount: 2
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+image:
+  repository: myreactappacr.azurecr.io/my-react-app
+  pullPolicy: Always
+  tag: "latest"
 
-### Making a Progressive Web App
+service:
+  type: LoadBalancer
+  port: 8080
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
 
-### Advanced Configuration
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+volumeMounts:
+  - name: temp-volume
+    mountPath: /tmp
 
-### Deployment
+volumes:
+  - name: temp-volume
+    emptyDir: {}
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### 4. 🛠 Azure DevOps Pipeline (azure-pipelines.yml)
 
-### `npm run build` fails to minify
+Refer to the `azure-pipelines.yml` file in the repo for the full working pipeline configuration.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## ▶️ Running the Pipeline
+
+1. Push changes to the `main` branch.
+2. The pipeline will:
+   - Build and push Docker image to ACR
+   - Publish Helm chart as artifact
+   - Deploy to AKS using Helm
+3. Access the app using the **EXTERNAL-IP**:
+   ```bash
+   kubectl get svc -n default
+   ```
+
+## 🧪 Troubleshooting
+
+| Problem                           | Fix |
+|----------------------------------|------|
+| Pods stuck in `CrashLoopBackOff` | Check logs: `kubectl logs <pod>` |
+| nginx.pid or `/tmp` errors       | Ensure proper volume mount for `/tmp` and `pid /tmp/nginx.pid` in config |
+| No External IP                   | Change service type to `LoadBalancer` in `values.yaml` |
+| Helm stuck on upgrade            | Delete stuck secrets: `kubectl delete secret sh.helm.release.v1.<release>.v<revision>` |
+
+## 📦 Useful Commands
+
+```bash
+# Check pod logs
+kubectl logs <pod-name> -n default
+
+# Check service external IP
+kubectl get svc -n default
+
+# Helm release status
+helm status my-react-app -n default
+
+# Restart deployment
+kubectl rollout restart deployment <deployment-name> -n default
+```
